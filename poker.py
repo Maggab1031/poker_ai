@@ -96,7 +96,9 @@ class Deck(object):
 
 class Hand_of_Cards(object):
 
-    def __init__(self,player=None,cards=set()):
+    def __init__(self,player=None,cards=None):
+        if cards==None:
+            cards = set()
         self.cards = cards
         self.player = player
         self.value = self.highest_value()
@@ -115,46 +117,38 @@ class Hand_of_Cards(object):
         return strings
 
     def is_pair(self):
-        ranks = set()
+        rank_dict = {}
         for card in self.cards:
-            ranks.add(card.get_rank())
-        return len(ranks)!=len(self.cards)
+            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
+            if rank_dict[str(card.get_rank())] > 1:
+                return True
+        return False
 
     def is_three_of_a_kind(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        for x in list:
-            if list.count(x) >= 3:
+        rank_dict = {}
+        for card in self.cards:
+            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] +1
+            if rank_dict[str(card.get_rank())]>2:
                 return True
         return False
 
     def is_four_of_a_kind(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        for x in list:
-            if list.count(x) >= 4:
+        rank_dict = {}
+        for card in self.cards:
+            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
+            if rank_dict[str(card.get_rank())] > 3:
                 return True
         return False
 
     def is_two_pair(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        sublist = []
-        i=0
-        while(i<len(list)):
-            if list[i] in sublist:
-                list.remove(list[i])
-                break
-            else:
-                sublist.append(list[i])
-                list.remove(list[i])
-        for x in list:
-            if list.count(x)>=2:
-                return True
-        return False
+        rank_dict = {}
+        for card in self.cards:
+            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
+        total = 0
+        for rank in rank_dict:
+            if rank_dict[rank]>1:
+                total += 1
+        return total>1
 
     def is_straight(self):
         list = []
