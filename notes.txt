@@ -1,0 +1,4 @@
+ideas for the neural net:
+
+track current bet, actual bet, current reserves, current pot, current hand score including cards in middle, decision [Fold][Call][Raise][Check]
+output is winnings from round
