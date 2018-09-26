@@ -33,7 +33,6 @@ class Hand_Value(Enum):
     PAIR =1
     NONE =0
 
-
 class Rank(Enum):
     ACE = 1
     TWO = 2
@@ -59,7 +58,6 @@ class Suit(Enum):
     HEARTS = 3
     SPADES = 4
 
-
 class Card(object):
 
     def __init__(self, suit:Suit, rank:Rank):
@@ -84,6 +82,9 @@ class Card(object):
     def get_string(self):
         return self.rank.name+" of "+self.suit.name
 
+    def __str__(self):
+        return self.rank.name + " of " + self.suit.name
+
 class Deck(object):
 
     def __init__(self):
@@ -98,11 +99,7 @@ class Deck(object):
     def draw_card(self):
         return self.cards.pop()
 
-
 class Hand_of_Cards(object):
-
-
-
     def __init__(self,player=None,cards=None):
         if cards==None:
             cards = set()
@@ -227,42 +224,181 @@ class Hand_of_Cards(object):
 
     def highest_value(self):
         if self.is_royal_flush():
-            return Hand_Value.ROYAL_FLUSH
+            return (Hand_Value.ROYAL_FLUSH,self.cards)
         elif self.is_straight_flush():
-            return Hand_Value.STRAIGHT_FLUSH
+            return (Hand_Value.STRAIGHT_FLUSH,self.cards)
         elif self.is_four_of_a_kind():
-            return Hand_Value.FOUR_OF_A_KIND
+            return (Hand_Value.FOUR_OF_A_KIND,self.cards)
         elif self.is_full_house():
-            return Hand_Value.FULL_HOUSE
+            return (Hand_Value.FULL_HOUSE,self.cards)
         elif self.is_flush():
-            return Hand_Value.FLUSH
+            return (Hand_Value.FLUSH,self.cards)
         elif self.is_straight():
-            return Hand_Value.STRAIGHT
+            return (Hand_Value.STRAIGHT,self.cards)
         elif self.is_three_of_a_kind():
-            return Hand_Value.THREE_OF_A_KIND
+            return (Hand_Value.THREE_OF_A_KIND,self.cards)
         elif self.is_two_pair():
-            return Hand_Value.TWO_PAIR
+            return (Hand_Value.TWO_PAIR,self.cards)
         elif self.is_pair():
-            return Hand_Value.PAIR
+            return (Hand_Value.PAIR,self.cards)
         else:
-            return Hand_Value.NONE
+            return (Hand_Value.NONE,self.cards)
 
     def reveal_to_player(self):
         self.player.see_hand()
 
+class Player(object):
+    def __init__(self,game,bank):
+        self.hand = Hand_of_Cards(self)
+        self.game = game
+        self.bank = bank
+
+    def get_hand(self):
+        return self.hand
+
+    def fold(self):
+        self.game.get_current_round().remove_player(self)
+
+    def add_to_hand(self,card):
+        self.hand.add_card(card)
+
+    def propose_bet(self,amount:int):
+        decision = ""
+        while decision!="bet" or decision!="fold" or decision!="raise":
+            decision = input("Bet "+str(amount)+", Fold, or raise? Answer bet/fold/raise.")
+        if decision=="bet":
+            return (True,0,False)
+        elif decision=="fold":
+            return (False,-1,False)
+        elif decision=="raise":
+            amount = ""
+            while not amount.isdigit():
+                amount = input("How much would you like to bet?")
+                while int(amount)>self.bank:
+                    amount = input("Please input an amount less than or equal to your bank: ")
+            if int(amount)==self.bank:
+                print("ALL IN")
+                return (True,int(amount),True)
+            return (True,int(amount),False)
+
+    def blind(self,amount):
+        self.bank -= amount
+
+
+class Game(object):
+    def __init__(self,players):
+        self.players = players
+        self.dealer_index = 0
+        self.current_round = Poker_Round(self, players,self.dealer_index)
+
+    def get_current_round(self):
+        return self.current_round
+
+    def new_round(self):
+        if self.dealer_index>=(len(self.players)-1):
+            self.dealer_index = 0
+        else:
+            self.dealer_index +=1
+        self.current_round = Poker_Round(self, self.players,self.dealer_index)
+
+
+class Round_Stage(Enum):
+    SMALL_BLIND = 0
+    BIG_BLIND = 1
+    DEAL_TWO = 2
+    FIRST_ROUND_BETTING = 3
+    THE_FLOP = 4
+    SECOND_ROUND_BETTING = 5
+    THE_TURN =6
+    THIRD_ROUND_BETTING = 7
+    THE_RIVER = 8
+    FOURTH_ROUND_BETTING = 9
+    THE_SHOWDOWN = 10
+    THE_END = 11
+
+class Poker_Round(object):
+    def __init__(self, game,players,dealer_index,small_blind):
+        self.small_blind = small_blind
+        self.game = game
+        self.players = players
+        self.deck = Deck()
+        self.dealer_index = dealer_index
+        self.pot = 0
+        self.limit = False
+        self.stage = Round_Stage.SMALL_BLIND
+
+    def remove_player(self,player):
+        if player in self.players: self.players.remove(player)
+
+    def deal_cards(self):
+        for i in range(self.dealer_index,len(self.players)):
+            self.players[i].add_to_hand(self.deck.draw_card())
+        for i in range(0,self.dealer_index):
+            self.players[i].add_to_hand(self.deck.draw_card())
+
+    def propose_bet(self,player,amount):
+        if self.limit:
+            amount = 0
+        response = player.propose_bet(amount)
+        if response[0]:
+            self.pot += response[1]
+            if response[2]:
+                self.limit = True
+
+    def round_of_bets(self,blind=0):
+        debts = {}
+        debt = blind
+        for player in self.players:
+            debts[str(player)] = debt
+        new_players = []
+        for i in range(self.dealer_index,len(self.players)):
+            new_players.append(self.players[i])
+        for i in range(0, self.dealer_index):
+            new_players.append(self.players[i])
+        amount = blind
+        for player in new_players:
+            self.propose_bet(player,amount-debts[str(player)])
+
+
+    def run_round(self):
+        if self.dealer_index ==len(self.players-1):
+            self.players[0].blind(self.small_blind)
+            self.players[1].blind(self.small_blind*2)
+        elif self.dealer_index!=len(self.players)-2:
+            self.players[self.dealer_index+1].blind(self.small_blind)
+            self.players[0].blind(self.small_blind*2)
+        else:
+            self.players[self.dealer_index + 1].blind(self.small_blind)
+            self.players[self.dealer_index + 2].blind(self.small_blind * 2)
+        self.deal_cards()
+        self.deal_cards()
+        #first round of betting
+        #THE FLOP
+        #second round of betting
+        #the turn
+        #third round of betting
+        #the river
+        #fourth round of betting
+        #the showdon
+        #the end
+        return None
+
+
 def main():
     dict = {}
-    for i in range(0,100000):
+    for i in range(0,10000):
         deck = Deck()
         hand = Hand_of_Cards()
         for i in range(0,5):
             hand.add_card(deck.draw_card())
-        val = (hand.highest_value())
+        val = (hand.highest_value())[0]
+    """
         if val not in dict.keys():
             dict[val]=0
         dict[val] +=1
-    for key in dict.keys():
-        print(key," ",str((100*dict[key])/10000))
+        for key in dict.keys():
+            print(key," ",str((100*dict[key])/100000))
+    """
 
 if __name__ == '__main__':
     main()
