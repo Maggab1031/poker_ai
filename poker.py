@@ -33,6 +33,7 @@ class Hand_Value(Enum):
     PAIR =1
     NONE =0
 
+
 class Rank(Enum):
     ACE = 1
     TWO = 2
@@ -47,6 +48,10 @@ class Rank(Enum):
     JACK = 11
     QUEEN = 12
     KING = 13
+
+face_cards = set()
+for i in [Rank.JACK,Rank.QUEEN,Rank.KING,Rank.ACE,Rank.TEN]:
+    face_cards.add(i)
 
 class Suit(Enum):
     CLUBS = 1
@@ -96,12 +101,19 @@ class Deck(object):
 
 class Hand_of_Cards(object):
 
+
+
     def __init__(self,player=None,cards=None):
         if cards==None:
             cards = set()
-        self.cards = cards
-        self.player = player
-        self.value = self.highest_value()
+            self.cards = cards
+            self.player = player
+        else:
+            self.cards = cards
+            self.player = player
+            self.value = self.highest_value()
+
+
 
     def add_card(self,card):
         self.cards.add(card)
@@ -119,6 +131,8 @@ class Hand_of_Cards(object):
     def is_pair(self):
         rank_dict = {}
         for card in self.cards:
+            if str(card.get_rank()) not in rank_dict:
+                rank_dict[str(card.get_rank())] = 0
             rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
             if rank_dict[str(card.get_rank())] > 1:
                 return True
@@ -127,6 +141,8 @@ class Hand_of_Cards(object):
     def is_three_of_a_kind(self):
         rank_dict = {}
         for card in self.cards:
+            if str(card.get_rank()) not in rank_dict:
+                rank_dict[str(card.get_rank())] = 0
             rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] +1
             if rank_dict[str(card.get_rank())]>2:
                 return True
@@ -135,6 +151,8 @@ class Hand_of_Cards(object):
     def is_four_of_a_kind(self):
         rank_dict = {}
         for card in self.cards:
+            if str(card.get_rank()) not in rank_dict:
+                rank_dict[str(card.get_rank())] = 0
             rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
             if rank_dict[str(card.get_rank())] > 3:
                 return True
@@ -143,7 +161,9 @@ class Hand_of_Cards(object):
     def is_two_pair(self):
         rank_dict = {}
         for card in self.cards:
-            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
+            if str(card.get_rank()) not in rank_dict:
+                rank_dict[str(card.get_rank())] = 0
+                rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
         total = 0
         for rank in rank_dict:
             if rank_dict[rank]>1:
@@ -151,90 +171,98 @@ class Hand_of_Cards(object):
         return total>1
 
     def is_straight(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        list.sort(key=None, reverse=True)
-        for x in range(0,len(list)-1):
-            if list[x+1] != list[x]-1:
-                return False
-        return True and len(self.cards)==5
+        cards = self.cards
+        ranks = []
+        for card in cards:
+            ranks.append(card.get_rank().value)
+        ranks.sort(reverse=True)
+        if (len(self.cards)==5):
+            i=len(ranks)-1
+            while i > 1:
+                if ranks[i-1]!=ranks[i]-1:
+                    return False
+                else:
+                    i-=1
+            return True
 
     def is_flush(self):
         list= []
         for x in self.cards:
             list.append(x.get_suit())
-        if len(list)!=5:
-            return False
         if list.count(list[0])==5:
             return True
         else:
             return False
 
     def is_full_house(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        sublist = []
-        i = 0
-        while (i < len(list)):
-            if list[i] in sublist:
-                list.remove(list[i])
-                break
-            else:
-                sublist.append(list[i])
-                list.remove(list[i])
-        for x in list:
-            if list.count(x) >= 2 and sublist[0] in list:
-                return True
+        rank_dict = {}
+        for card in self.cards:
+            if str(card.get_rank()) not in rank_dict.keys():
+                rank_dict[str(card.get_rank())] = 0
+            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
+        for rank in rank_dict:
+            if rank_dict[rank]==2:
+                for rank in rank_dict:
+                    if rank_dict[rank]==3:
+                        return True
+            if rank_dict[rank]==3:
+                for rank in rank_dict:
+                    if rank_dict[rank] == 2:
+                        return True
         return False
 
     def is_straight_flush(self):
         return self.is_flush() and self.is_straight()
 
     def is_royal_flush(self):
-        list = []
-        for x in self.cards:
-            list.append(x.get_rank())
-        list.sort()
-        list.sort(key=None, reverse=True)
-        if list == [13,12,11,10,1]:
-            return True and self.is_flush()
-        else:
-            return False
+        suits ={}
+        for card in self.cards:
+            if str(card.get_suit()) not in suits.keys():
+                suits[str(card.get_suit())] = 0
+            suits[str(card.get_suit())] = suits[str(card.get_suit())] +1
+            if card.rank not in face_cards:
+                return False
+        if len(suits.keys())==1 and len(self.cards)==5:
+            return True
 
     def highest_value(self):
         if self.is_royal_flush():
-            return 0
+            return Hand_Value.ROYAL_FLUSH
         elif self.is_straight_flush():
-            return 1
+            return Hand_Value.STRAIGHT_FLUSH
         elif self.is_four_of_a_kind():
-            return 2
+            return Hand_Value.FOUR_OF_A_KIND
         elif self.is_full_house():
-            return 3
+            return Hand_Value.FULL_HOUSE
         elif self.is_flush():
-            return 4
+            return Hand_Value.FLUSH
         elif self.is_straight():
-            return 5
+            return Hand_Value.STRAIGHT
         elif self.is_three_of_a_kind():
-            return 6
+            return Hand_Value.THREE_OF_A_KIND
         elif self.is_two_pair():
-            return 7
+            return Hand_Value.TWO_PAIR
         elif self.is_pair():
-            return 8
+            return Hand_Value.PAIR
         else:
-            return 9
+            return Hand_Value.NONE
 
     def reveal_to_player(self):
         self.player.see_hand()
 
 def main():
-    hand = Hand_of_Cards()
-    hand.add_card(Card(Suit.CLUBS,Rank.ACE))
-    hand.add_card(Card(Suit.DIAMONDS,Rank.ACE))
-    hand.add_card(Card(Suit.HEARTS,Rank.ACE))
-    hand.add_card(Card(Suit.SPADES,Rank.ACE))
-    print(hand.is_pair())
+    dict = {}
+    for i in range(0,100000):
+        deck = Deck()
+        hand = Hand_of_Cards()
+        for i in range(0,5):
+            hand.add_card(deck.draw_card())
+        val = (hand.highest_value())
+        if val not in dict.keys():
+            dict[val]=0
+        dict[val] +=1
+    for key in dict.keys():
+        print(key," ",str((100*dict[key])/10000))
 
 if __name__ == '__main__':
     main()
