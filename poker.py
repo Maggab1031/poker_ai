@@ -110,11 +110,23 @@ class Hand_of_Cards(object):
             self.player = player
             self.value = self.highest_value()
 
+    def __str__(self):
+        a = ""
+        for card in self.cards:
+            a += str(card)+", "
+        return a
 
+    def better_hand_than(self,other_hand):
+        if self.highest_value()[0].value > other_hand.highest_value()[0].value:
+            return True
+        elif self.highest_value()[0].value < other_hand.highest_value()[0].value:
+            return False
+        else:
+            print("tie")
+            return True
 
     def add_card(self,card):
         self.cards.add(card)
-        #self.value = self.highest_value()
 
     def get_cards(self):
         return self.cards
@@ -266,6 +278,9 @@ class Player(object):
         decision = ""
         while decision!="bet" or decision!="fold" or decision!="raise":
             decision = input("Bet "+str(amount)+", Fold, or raise? Answer bet/fold/raise.")
+            print(decision=="bet")
+            print(decision=="fold")
+            print(decision=="raise")
         if decision=="bet":
             return (True,0,False)
         elif decision=="fold":
@@ -286,10 +301,11 @@ class Player(object):
 
 
 class Game(object):
-    def __init__(self,players):
-        self.players = players
+    def __init__(self):
+        self.players = []
         self.dealer_index = 0
-        self.current_round = Poker_Round(self, players,self.dealer_index)
+        self.blind = 5
+        self.current_round = Poker_Round(self, self.players,self.dealer_index, self.blind)
 
     def get_current_round(self):
         return self.current_round
@@ -299,8 +315,11 @@ class Game(object):
             self.dealer_index = 0
         else:
             self.dealer_index +=1
-        self.current_round = Poker_Round(self, self.players,self.dealer_index)
+        self.current_round = Poker_Round(self, self.players,self.dealer_index,self.blind)
+        return self.current_round
 
+    def add_player(self,player):
+        self.players.append(player)
 
 class Round_Stage(Enum):
     SMALL_BLIND = 0
@@ -326,6 +345,7 @@ class Poker_Round(object):
         self.pot = 0
         self.limit = False
         self.stage = Round_Stage.SMALL_BLIND
+        self.shared_cards = set()
 
     def remove_player(self,player):
         if player in self.players: self.players.remove(player)
@@ -344,10 +364,12 @@ class Poker_Round(object):
             self.pot += response[1]
             if response[2]:
                 self.limit = True
+            return response
 
-    def round_of_bets(self,blind=0):
+    def round_of_bets(self,amount=0):
+        print("round")
         debts = {}
-        debt = blind
+        debt = 0
         for player in self.players:
             debts[str(player)] = debt
         new_players = []
@@ -355,13 +377,15 @@ class Poker_Round(object):
             new_players.append(self.players[i])
         for i in range(0, self.dealer_index):
             new_players.append(self.players[i])
-        amount = blind
         for player in new_players:
-            self.propose_bet(player,amount-debts[str(player)])
+            raised = self.propose_bet(player,amount-debts[str(player)])
+            for player_str in debts.keys():
+                debts[player_str]+=raised
+            debts[player]-=raised
 
 
     def run_round(self):
-        if self.dealer_index ==len(self.players-1):
+        if self.dealer_index ==len(self.players)-1:
             self.players[0].blind(self.small_blind)
             self.players[1].blind(self.small_blind*2)
         elif self.dealer_index!=len(self.players)-2:
@@ -374,31 +398,29 @@ class Poker_Round(object):
         self.deal_cards()
         #first round of betting
         #THE FLOP
+        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.add(self.deck.draw_card())
         #second round of betting
+        self.round_of_bets()
         #the turn
+        self.shared_cards.add(self.deck.draw_card())
         #third round of betting
+        self.round_of_bets()
         #the river
+        self.shared_cards.add(self.deck.draw_card())
         #fourth round of betting
-        #the showdon
+        self.round_of_bets()
+        #the showdown
         #the end
         return None
 
 
 def main():
-    dict = {}
-    for i in range(0,10000):
-        deck = Deck()
-        hand = Hand_of_Cards()
-        for i in range(0,5):
-            hand.add_card(deck.draw_card())
-        val = (hand.highest_value())[0]
-    """
-        if val not in dict.keys():
-            dict[val]=0
-        dict[val] +=1
-        for key in dict.keys():
-            print(key," ",str((100*dict[key])/100000))
-    """
-
+    game = Game()
+    for i in range(0,5):
+        game.add_player(Player(game,bank=500))
+    round: Poker_Round= game.new_round()
+    round.run_round()
 if __name__ == '__main__':
     main()
