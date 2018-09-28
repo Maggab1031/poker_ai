@@ -38,6 +38,20 @@ face_cards = set()
 for i in [Rank.JACK,Rank.QUEEN,Rank.KING,Rank.ACE,Rank.TEN]:
     face_cards.add(i)
 
+class Round_Stage(Enum):
+    SMALL_BLIND = 0
+    BIG_BLIND = 1
+    DEAL_TWO = 2
+    FIRST_ROUND_BETTING = 3
+    THE_FLOP = 4
+    SECOND_ROUND_BETTING = 5
+    THE_TURN =6
+    THIRD_ROUND_BETTING = 7
+    THE_RIVER = 8
+    FOURTH_ROUND_BETTING = 9
+    THE_SHOWDOWN = 10
+    THE_END = 11
+
 class Suit(Enum):
     CLUBS = 1
     DIAMONDS = 2
@@ -303,7 +317,6 @@ class Player(object):
         else:
             return False
 
-
 class Game(object):
     def __init__(self):
         self.players = []
@@ -325,21 +338,8 @@ class Game(object):
     def add_player(self,player):
         self.players.append(player)
 
-class Round_Stage(Enum):
-    SMALL_BLIND = 0
-    BIG_BLIND = 1
-    DEAL_TWO = 2
-    FIRST_ROUND_BETTING = 3
-    THE_FLOP = 4
-    SECOND_ROUND_BETTING = 5
-    THE_TURN =6
-    THIRD_ROUND_BETTING = 7
-    THE_RIVER = 8
-    FOURTH_ROUND_BETTING = 9
-    THE_SHOWDOWN = 10
-    THE_END = 11
-
 class Poker_Round(object):
+
     def __init__(self, game,players,dealer_index,small_blind):
         self.dealer_index = dealer_index
         self.small_blind = small_blind
@@ -458,12 +458,12 @@ class Poker_Round(object):
         self.stage = Round_Stage.THE_END
         return None
 
-
 def main():
     game = Game()
     for i in range(0,5):
         game.add_player(Player(game,bank=500,name=str(i)))
     round: Poker_Round= game.get_current_round()
     round.run_round()
+
 if __name__ == '__main__':
     main()
