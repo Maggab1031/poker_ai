@@ -260,10 +260,11 @@ class Hand_of_Cards(object):
         self.player.see_hand()
 
 class Player(object):
-    def __init__(self,game,bank):
+    def __init__(self,game,bank,name):
         self.hand = Hand_of_Cards(self)
         self.game = game
         self.bank = bank
+        self.name = name
 
     def get_hand(self):
         return self.hand
@@ -276,7 +277,7 @@ class Player(object):
 
     def propose_bet(self,amount:int):
         decision = ""
-        while decision!="bet" or decision!="fold" or decision!="raise":
+        while not (decision=="bet" or decision=="fold" or decision=="raise"):
             decision = input("Bet "+str(amount)+", Fold, or raise? Answer bet/fold/raise.")
             print(decision=="bet")
             print(decision=="fold")
@@ -297,7 +298,11 @@ class Player(object):
             return (True,int(amount),False)
 
     def blind(self,amount):
-        self.bank -= amount
+        if self.bank>=amount:
+            self.bank -= amount
+            return True
+        else:
+            return False
 
 
 class Game(object):
@@ -380,8 +385,8 @@ class Poker_Round(object):
         for player in new_players:
             raised = self.propose_bet(player,amount-debts[str(player)])
             for player_str in debts.keys():
-                debts[player_str]+=raised
-            debts[player]-=raised
+                debts[player_str]+=raised[1]
+            debts[str(player)]-=raised[1]
 
 
     def run_round(self):
