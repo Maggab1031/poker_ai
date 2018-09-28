@@ -293,7 +293,6 @@ class Player(object):
             else:
                 return (True,int(amount),False)
         elif decision=="fold":
-            print("madeit")
             return (False,-1,False)
         elif decision=="raise":
             proposed = ""
@@ -375,48 +374,65 @@ class Poker_Round(object):
             hand.add_card(card)
         return hand
 
+    def end_round(self):
+        num_pl = len(self.players)
+        for player in self.players:
+            player.bank += int(self.pot/num_pl)
+
     def round_of_bets(self,amount=0,index=None):
+        #set the starting index to the player next in rotation after the given index
         if index==None:
             index = self.dealer_index
         if index!=len(self.players)-1:
             index = index +1
         else:
             index = 0
+        #initialize the dicts for tracking debts and paid
         debts = {}
         paid = {}
         debt = amount
         for player in self.players:
             debts[str(player.name)] = debt
             paid[str(player.name)] = 0
+        #make a list starting with the starting index
         new_players = []
         for i in range(index,len(self.players)):
             new_players.append(self.players[i])
         for i in range(0, index):
             new_players.append(self.players[i])
+
+        #loop through the list
         for player in new_players:
-                if self.limit:
-                    amount = 0
-                else:
-                    amount = debts[player.name]
-                response = player.propose_bet(amount,self)
-                if response[0]:
-                    self.pot += response[1]
-                    paid[str(player.name)] += response[1]
-                    if response[2]:
-                        self.limit = True
-                    raised = response
-                else:
-                    raised = response
-                if raised[0]:
-                    to_pay =(raised[1] - debts[str(player.name)])
-                    for player_str in debts.keys():
-                        debts[player_str]+= to_pay
-                    debts[str(player.name)]=0
-                    print(debts)
-                    print(paid)
-                else:
-                    del debts[str(player.name)]
-                    del paid[str(player.name)]
+            #if a player has gone all in, they cannot bet any more
+            if self.limit:
+                amount = 0
+            else:
+                # otherwise the player must play the debt that they owe
+                amount = debts[player.name]
+            # query the debt
+            response = player.propose_bet(amount, self)
+            # if the player did not fold
+            if response[0]:
+                # add the amount bet to the pot
+                self.pot += response[1]
+                # add how much they paid to the paid dict
+                paid[str(player.name)] += response[1]
+                # if the player went all in, set boolean up
+                if response[2]:
+                    self.limit = True
+                to_pay = (response[1] - debts[str(player.name)])
+                for player_str in debts.keys():
+                    debts[player_str] += to_pay
+                debts[str(player.name)] = 0
+                print(debts)
+                print(paid)
+            else:
+                #if the player folds, remove them from all dicts and the player list
+                del debts[str(player.name)]
+                del paid[str(player.name)]
+                self.players.remove(player)
+                if len(self.players)==1:
+                    self.end_round()
         up_to_date = True
         for key in debts.keys():
             up_to_date = (debts[key]==0) and up_to_date
@@ -425,11 +441,15 @@ class Poker_Round(object):
 
 
     def run_round(self):
+        self.stage = Round_Stage.SMALL_BLIND
         self.players[self.smbi].blind(self.small_blind)
+        self.stage = Round_Stage.BIG_BLIND
         self.players[self.bbi].blind(self.small_blind*2)
+        self.stage = Round_Stage.DEAL_TWO
         self.deal_cards()
         self.deal_cards()
         #first round of betting
+        self.stage =Round_Stage.FIRST_ROUND_BETTING
         self.round_of_bets(amount=self.small_blind*2,index=self.bbi)
         #THE FLOP
         self.stage = Round_Stage.THE_FLOP
@@ -442,13 +462,13 @@ class Poker_Round(object):
         self.round_of_bets()
         #the turn
         self.stage = Round_Stage.THE_TURN
-        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.append(self.deck.draw_card())
         #third round of betting
         self.stage = Round_Stage.THIRD_ROUND_BETTING
         self.round_of_bets()
         #the river
         self.stage = Round_Stage.THE_RIVER
-        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.append(self.deck.draw_card())
         #fourth round of betting
         self.stage = Round_Stage.FOURTH_ROUND_BETTING
         self.round_of_bets()
@@ -456,6 +476,7 @@ class Poker_Round(object):
         self.stage = Round_Stage.THE_SHOWDOWN
         #the end
         self.stage = Round_Stage.THE_END
+        self.end_round()
         return None
 
 def main():
