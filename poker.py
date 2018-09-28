@@ -1,11 +1,10 @@
 import random
-import numpy
 from enum import Enum
 
 
-#todo: betting - make it so after a raise happens the players that bet beforehand have a chance to call.
-#todo: make it so the game ends exactly when there is one player left.
-#todo: implement blinds closer to irl game
+#todo: make it so the round doesn't end until all debts are paid
+#todo: folding/losing conditions
+#todo: make rounds run consecutively
 
 
 
@@ -124,6 +123,9 @@ class Hand_of_Cards(object):
         else:
             print("tie")
             return True
+
+    def copy(self):
+        return Hand_of_Cards(self.player,self.cards)
 
     def add_card(self,card):
         self.cards.add(card)
@@ -276,10 +278,10 @@ class Player(object):
         self.hand.add_card(card)
         print(self.name," Added",str(card))
 
-    def propose_bet(self,amount:int):
+    def propose_bet(self,amount:int,round):
         decision = ""
         while not (decision=="bet" or decision=="fold" or decision=="raise"):
-            decision = input("Hello, "+self.name+" Bet "+str(amount)+", Fold, or raise? You hand is "+str(self.hand)+" Answer bet/fold/raise.")
+            decision = input("Hello, "+self.name+" Bet "+str(amount)+", Fold, or raise? You hand is "+str(round.total_hand(self))+" Answer bet/fold/raise.")
         if decision=="bet":
             if int(amount) > self.bank:
                 print("You cannot bet. You must fold.")
@@ -369,7 +371,7 @@ class Poker_Round(object):
         self.pot = 0
         self.limit = False
         self.stage = Round_Stage.SMALL_BLIND
-        self.shared_cards = set()
+        self.shared_cards = []
 
     def remove_player(self,player):
         if player in self.players: self.players.remove(player)
@@ -379,6 +381,12 @@ class Poker_Round(object):
             self.players[i].add_to_hand(self.deck.draw_card())
         for i in range(0,self.smbi):
             self.players[i].add_to_hand(self.deck.draw_card())
+
+    def total_hand(self,player):
+        hand:Hand_of_Cards = player.hand.copy()
+        for card in self.shared_cards:
+            hand.add_card(card)
+        return hand
 
     def round_of_bets(self,amount=0,index=None):
         if index==None:
@@ -403,7 +411,7 @@ class Poker_Round(object):
                     amount = 0
                 else:
                     amount = debts[player.name]
-                response = player.propose_bet(amount)
+                response = player.propose_bet(amount,self)
                 if response[0]:
                     self.pot += response[1]
                     paid[str(player.name)] += response[1]
@@ -437,22 +445,30 @@ class Poker_Round(object):
         #first round of betting
         self.round_of_bets(amount=self.small_blind*2,index=self.bbi)
         #THE FLOP
-        print("deal")
-        self.shared_cards.add(self.deck.draw_card())
-        self.shared_cards.add(self.deck.draw_card())
-        self.shared_cards.add(self.deck.draw_card())
+        self.stage = Round_Stage.THE_FLOP
+        self.shared_cards.append(self.deck.draw_card())
+        self.shared_cards.append(self.deck.draw_card())
+        self.shared_cards.append(self.deck.draw_card())
+        print("The shared cards are: ",self.shared_cards[0],self.shared_cards[1],self.shared_cards[2])
         #second round of betting
+        self.stage = Round_Stage.SECOND_ROUND_BETTING
         self.round_of_bets()
         #the turn
+        self.stage = Round_Stage.THE_TURN
         self.shared_cards.add(self.deck.draw_card())
         #third round of betting
+        self.stage = Round_Stage.THIRD_ROUND_BETTING
         self.round_of_bets()
         #the river
+        self.stage = Round_Stage.THE_RIVER
         self.shared_cards.add(self.deck.draw_card())
         #fourth round of betting
+        self.stage = Round_Stage.FOURTH_ROUND_BETTING
         self.round_of_bets()
         #the showdown
+        self.stage = Round_Stage.THE_SHOWDOWN
         #the end
+        self.stage = Round_Stage.THE_END
         return None
 
 
