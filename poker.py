@@ -274,30 +274,40 @@ class Player(object):
 
     def add_to_hand(self,card):
         self.hand.add_card(card)
+        print(self.name," Added",str(card))
 
     def propose_bet(self,amount:int):
         decision = ""
         while not (decision=="bet" or decision=="fold" or decision=="raise"):
-            decision = input("Bet "+str(amount)+", Fold, or raise? Answer bet/fold/raise.")
-            print(decision=="bet")
-            print(decision=="fold")
-            print(decision=="raise")
+            decision = input("Hello, "+self.name+" Bet "+str(amount)+", Fold, or raise? You hand is "+str(self.hand)+" Answer bet/fold/raise.")
         if decision=="bet":
-            return (True,0,False)
+            if int(amount) > self.bank:
+                print("You cannot bet. You must fold.")
+                return self.propose_bet(amount)
+            elif int(amount)==self.bank:
+                print("ALL IN")
+                return (True, int(amount), True)
+            else:
+                return (True,int(amount),False)
         elif decision=="fold":
+            print("madeit")
             return (False,-1,False)
         elif decision=="raise":
-            amount = ""
-            while not amount.isdigit():
-                amount = input("How much would you like to bet?")
-                while int(amount)>self.bank:
-                    amount = input("Please input an amount less than or equal to your bank: ")
+            proposed = ""
+            while not proposed.isdigit():
+                proposed = input("How much would you like to bet?")
+            while int(proposed)>self.bank:
+                proposed = input("Please input an amount less than or equal to your bank: ")
+            while int(proposed)<= amount:
+                proposed = input("Please input a number greater than the previous bet")
+            amount = int(proposed)
             if int(amount)==self.bank:
                 print("ALL IN")
                 return (True,int(amount),True)
             return (True,int(amount),False)
 
     def blind(self,amount):
+        print(self.name," Blind of ",amount)
         if self.bank>=amount:
             self.bank -= amount
             return True
@@ -342,11 +352,20 @@ class Round_Stage(Enum):
 
 class Poker_Round(object):
     def __init__(self, game,players,dealer_index,small_blind):
-        self.small_blind = small_blind
-        self.game = game
-        self.players = players
-        self.deck = Deck()
         self.dealer_index = dealer_index
+        self.small_blind = small_blind
+        self.players = players
+        if self.dealer_index ==len(self.players)-1:
+            self.smbi = 0
+            self.bbi = 1
+        elif self.dealer_index==len(self.players)-2:
+            self.smbi = self.dealer_index+1
+            self.bbi = 0
+        else:
+            self.smbi = self.dealer_index + 1
+            self.bbi = self.dealer_index + 2
+        self.game = game
+        self.deck = Deck()
         self.pot = 0
         self.limit = False
         self.stage = Round_Stage.SMALL_BLIND
@@ -356,53 +375,69 @@ class Poker_Round(object):
         if player in self.players: self.players.remove(player)
 
     def deal_cards(self):
-        for i in range(self.dealer_index,len(self.players)):
+        for i in range(self.smbi,len(self.players)):
             self.players[i].add_to_hand(self.deck.draw_card())
-        for i in range(0,self.dealer_index):
+        for i in range(0,self.smbi):
             self.players[i].add_to_hand(self.deck.draw_card())
 
-    def propose_bet(self,player,amount):
-        if self.limit:
-            amount = 0
-        response = player.propose_bet(amount)
-        if response[0]:
-            self.pot += response[1]
-            if response[2]:
-                self.limit = True
-            return response
-
-    def round_of_bets(self,amount=0):
-        print("round")
+    def round_of_bets(self,amount=0,index=None):
+        if index==None:
+            index = self.dealer_index
+        if index!=len(self.players)-1:
+            index = index +1
+        else:
+            index = 0
         debts = {}
-        debt = 0
+        paid = {}
+        debt = amount
         for player in self.players:
-            debts[str(player)] = debt
+            debts[str(player.name)] = debt
+            paid[str(player.name)] = 0
         new_players = []
-        for i in range(self.dealer_index,len(self.players)):
+        for i in range(index,len(self.players)):
             new_players.append(self.players[i])
-        for i in range(0, self.dealer_index):
+        for i in range(0, index):
             new_players.append(self.players[i])
         for player in new_players:
-            raised = self.propose_bet(player,amount-debts[str(player)])
-            for player_str in debts.keys():
-                debts[player_str]+=raised[1]
-            debts[str(player)]-=raised[1]
+                if self.limit:
+                    amount = 0
+                else:
+                    amount = debts[player.name]
+                response = player.propose_bet(amount)
+                if response[0]:
+                    self.pot += response[1]
+                    paid[str(player.name)] += response[1]
+                    if response[2]:
+                        self.limit = True
+                    raised = response
+                else:
+                    raised = response
+                if raised[0]:
+                    to_pay =(raised[1] - debts[str(player.name)])
+                    for player_str in debts.keys():
+                        debts[player_str]+= to_pay
+                    debts[str(player.name)]=0
+                    print(debts)
+                    print(paid)
+                else:
+                    del debts[str(player.name)]
+                    del paid[str(player.name)]
+        up_to_date = True
+        for key in debts.keys():
+            up_to_date = (debts[key]==0) and up_to_date
+        print(up_to_date)
+
 
 
     def run_round(self):
-        if self.dealer_index ==len(self.players)-1:
-            self.players[0].blind(self.small_blind)
-            self.players[1].blind(self.small_blind*2)
-        elif self.dealer_index!=len(self.players)-2:
-            self.players[self.dealer_index+1].blind(self.small_blind)
-            self.players[0].blind(self.small_blind*2)
-        else:
-            self.players[self.dealer_index + 1].blind(self.small_blind)
-            self.players[self.dealer_index + 2].blind(self.small_blind * 2)
+        self.players[self.smbi].blind(self.small_blind)
+        self.players[self.bbi].blind(self.small_blind*2)
         self.deal_cards()
         self.deal_cards()
         #first round of betting
+        self.round_of_bets(amount=self.small_blind*2,index=self.bbi)
         #THE FLOP
+        print("deal")
         self.shared_cards.add(self.deck.draw_card())
         self.shared_cards.add(self.deck.draw_card())
         self.shared_cards.add(self.deck.draw_card())
@@ -424,8 +459,8 @@ class Poker_Round(object):
 def main():
     game = Game()
     for i in range(0,5):
-        game.add_player(Player(game,bank=500))
-    round: Poker_Round= game.new_round()
+        game.add_player(Player(game,bank=500,name=str(i)))
+    round: Poker_Round= game.get_current_round()
     round.run_round()
 if __name__ == '__main__':
     main()
