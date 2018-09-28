@@ -433,10 +433,7 @@ class Poker_Round(object):
                 self.players.remove(player)
                 if len(self.players)==1:
                     self.end_round()
-        up_to_date = True
-        for key in debts.keys():
-            up_to_date = (debts[key]==0) and up_to_date
-        print(up_to_date)
+                    break
 
 
 
@@ -463,12 +460,14 @@ class Poker_Round(object):
         #the turn
         self.stage = Round_Stage.THE_TURN
         self.shared_cards.append(self.deck.draw_card())
+        print("The shared cards are: ", self.shared_cards[0], self.shared_cards[1], self.shared_cards[2], self.shared_cards[3])
         #third round of betting
         self.stage = Round_Stage.THIRD_ROUND_BETTING
         self.round_of_bets()
         #the river
         self.stage = Round_Stage.THE_RIVER
         self.shared_cards.append(self.deck.draw_card())
+        print("The shared cards are: ", self.shared_cards[0], self.shared_cards[1], self.shared_cards[2], self.shared_cards[3], self.shared_cards[4])
         #fourth round of betting
         self.stage = Round_Stage.FOURTH_ROUND_BETTING
         self.round_of_bets()
