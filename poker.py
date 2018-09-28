@@ -7,19 +7,6 @@ from enum import Enum
 #todo: make rounds run consecutively
 
 
-
-def all_permutations(list,size):
-    if len(list)==size:
-        return [list]
-    else:
-        my_list = []
-        for i in range(len(list)):
-            combos = all_permutations(list[i + 1:], size - 1)
-            for j in combos:
-                sublist = [list[i]]+j
-                my_list.append(sublist)
-        return my_list
-
 class Hand_Value(Enum):
     ROYAL_FLUSH =9
     STRAIGHT_FLUSH=8
