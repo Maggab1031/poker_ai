@@ -1,38 +1,10 @@
 import random
 from enum import Enum
-from hand import Hand_of_Cards
+from hand import Hand_of_Cards, Hand_Value, Rank, Suit, Card
 
 #todo: folding/losing conditions
 #todo: make rounds run consecutively
 
-
-
-class Hand_Value(Enum):
-    ROYAL_FLUSH =9
-    STRAIGHT_FLUSH=8
-    FOUR_OF_A_KIND=7
-    FULL_HOUSE=6
-    FLUSH=5
-    STRAIGHT=4
-    THREE_OF_A_KIND=3
-    TWO_PAIR=2
-    PAIR =1
-    NONE =0
-
-class Rank(Enum):
-    ACE = 1
-    TWO = 2
-    THREE = 3
-    FOUR = 4
-    FIVE = 5
-    SIX = 6
-    SEVEN = 7
-    EIGHT = 8
-    NINE = 9
-    TEN = 10
-    JACK = 11
-    QUEEN = 12
-    KING = 13
 
 face_cards = set()
 for i in [Rank.JACK,Rank.QUEEN,Rank.KING,Rank.ACE,Rank.TEN]:
@@ -52,38 +24,6 @@ class Round_Stage(Enum):
     THE_SHOWDOWN = 10
     THE_END = 11
 
-class Suit(Enum):
-    CLUBS = 1
-    DIAMONDS = 2
-    HEARTS = 3
-    SPADES = 4
-
-class Card(object):
-
-    def __init__(self, suit:Suit, rank:Rank):
-        self.suit = suit
-        self.rank = rank
-
-    def get_rank(self):
-        return self.rank
-
-    def get_rank(self):
-        return self.rank
-
-    def get_suit(self):
-        return self.suit
-
-    def same_suit(self,card):
-        return card.get_suit()==self.suit
-
-    def same_rank(self,card):
-        return card.get_rank()==self.rank
-
-    def get_string(self):
-        return self.rank.name+" of "+self.suit.name
-
-    def __str__(self):
-        return self.rank.name + " of " + self.suit.name
 
 class Deck(object):
 
@@ -99,17 +39,12 @@ class Deck(object):
     def draw_card(self):
         return self.cards.pop()
 
-
-
 class Player(object):
-    def __init__(self,game,bank,name):
+    def __init__(self,game,bank:int,name:str):
         self.hand = Hand_of_Cards(self)
         self.game = game
         self.bank = bank
         self.name = name
-
-    def get_hand(self):
-        return self.hand
 
     def fold(self):
         self.game.get_current_round().remove_player(self)
@@ -119,15 +54,19 @@ class Player(object):
         print(self.name," Added",str(card))
 
     def get_info(self):
+        print("Hello, ",self.name)
         print("Your hand is ",str(self.hand))
         print("Your bank is ",str(self.bank))
+        if self.game.current_round.shared_card_strings()!=[]:
+            print("The shared cards are: ",str(self.game.current_round.shared_card_strings()))
+        print("Your highest value is ",str(self.hand.highest_value()[0]))
+        print("Your current bet is ",str(self.game.current_round.debts[self.name]))
 
-
-
-    def propose_bet(self,amount:int,round):
+    def propose_bet(self,amount:int):
         decision = ""
         while not (decision=="bet" or decision=="fold" or decision=="raise"):
-            decision = input("Hello, "+self.name+" Bet "+str(amount)+", Fold, or raise? You hand is "+str(round.total_hand(self))+" Answer bet/fold/raise.")
+            self.get_info()
+            decision = input("Bet, fold, or raise?  Answer bet/fold/raise.")
         if decision=="bet":
             if int(amount) > self.bank:
                 print("You cannot bet. You must fold.")
@@ -166,17 +105,19 @@ class Game(object):
         self.players = []
         self.dealer_index = 0
         self.blind = 5
-        self.current_round = Poker_Round(self, self.players,self.dealer_index, self.blind)
 
     def get_current_round(self):
         return self.current_round
 
+    def get_current_stage(self):
+        return self.current_round.stage
+
     def new_round(self):
+        self.current_round = Poker_Round(self, self.players,self.dealer_index,self.blind)
         if self.dealer_index>=(len(self.players)-1):
             self.dealer_index = 0
         else:
             self.dealer_index +=1
-        self.current_round = Poker_Round(self, self.players,self.dealer_index,self.blind)
         return self.current_round
 
     def add_player(self,player):
@@ -203,9 +144,20 @@ class Poker_Round(object):
         self.limit = False
         self.stage = Round_Stage.SMALL_BLIND
         self.shared_cards = set()
+        self.paid = {}
+        self.debts = {}
+        for i in range(len(self.players)):
+            self.paid[self.players[i].name]=0
+            if i == self.smbi:
+                self.debts[self.players[i].name]=self.small_blind
+            elif i == self.bbi:
+                self.debts[self.players[i].name]=0
+            else:
+                self.debts[self.players[i].name] = self.small_blind * 2
 
     def remove_player(self,player):
-        if player in self.players: self.players.remove(player)
+        if player in self.players:
+            self.players.remove(player)
 
     def deal_cards(self):
         for i in range(self.smbi,len(self.players)):
@@ -220,29 +172,18 @@ class Poker_Round(object):
         return hand
 
     def end_round(self):
+        print("ended")
         num_pl = len(self.players)
         for player in self.players:
             player.bank += int(self.pot/num_pl)
 
-    def round_of_bets(self,amount=0,index=None,dicts=None,players=None):
+
+    def round_of_bets(self,index=None,players=None):
         #set the starting index to the player next in rotation after the given index
         if index==None:
             index = self.dealer_index
-        if index!=len(self.players)-1:
-            index = index +1
-        else:
+        if index==len(self.players)-1:
             index = 0
-        #initialize the dicts for tracking debts and paid
-        if dicts==None:
-            debts = {}
-            paid = {}
-            debt = amount
-            for player in self.players:
-                debts[str(player.name)] = debt
-                paid[str(player.name)] = 0
-        else:
-            debts = dicts[0]
-            paid = dicts[1]
         if players == None:
             # make a list starting with the starting index
             players=self.players
@@ -253,45 +194,48 @@ class Poker_Round(object):
             new_players.append(players[i])
         #loop through the list
         for player in new_players:
-            amount = debts[player.name]
+            amount = self.debts[player.name]
             # query the debt
-            response = player.propose_bet(amount, self)
+            response = player.propose_bet(amount)
             # if the player did not fold
             if response[0]:
                 # add the amount bet to the pot
                 self.pot += response[1]
                 # add how much they paid to the paid dict
-                paid[str(player.name)] += response[1]
+                self.paid[str(player.name)] += response[1]
                 # if the player went all in, set boolean up
                 if response[2]:
                     self.limit = True
                 # the amount each other player must pay is the amount this player raised
-                to_pay = (response[1] - debts[str(player.name)])
+                to_pay = (response[1] - self.debts[str(player.name)])
                 # add the raise to each debt
-                for player_str in debts.keys():
-                    debts[player_str] += to_pay
+                for player_str in self.debts.keys():
+                    self.debts[player_str] += to_pay
                 # the player has finished their debts
-                debts[str(player.name)] = 0
-                print(debts)
-                print(paid)
+                self.debts[str(player.name)] = 0
             else:
                 #if the player folds, remove them from all dicts and the player list
-                del debts[str(player.name)]
-                del paid[str(player.name)]
+                del self.debts[str(player.name)]
+                del self.paid[str(player.name)]
                 self.players.remove(player)
                 # if one player remains, the round is over
                 if len(self.players)==1:
                     self.end_round()
                     break
+        print("loop beginning")
         loop = True
-        for i in debts.keys():
-            loop = debts[i]==0 and loop
+        for i in self.debts.keys():
+            loop = self.debts[i]==0 and loop
         if not loop:
+            print("recursion")
             if index == len(new_players)-1:
                 index = 0
             else:
                 index +=1
-            self.round_of_bets(index=index,dicts=(debts,paid),players=new_players)
+            self.round_of_bets(index=index,players=new_players)
+        else:
+            for i in self.paid.keys():
+                self.paid[i]=0
 
     def shared_card_strings(self):
         shared = []
@@ -312,27 +256,24 @@ class Poker_Round(object):
         self.deal_cards()
         #first round of betting
         self.stage =Round_Stage.FIRST_ROUND_BETTING
-        self.round_of_bets(amount=self.small_blind*2,index=self.bbi)
+        self.round_of_bets(index=self.bbi)
         #THE FLOP
         self.stage = Round_Stage.THE_FLOP
         self.shared_cards.add(self.deck.draw_card())
         self.shared_cards.add(self.deck.draw_card())
         self.shared_cards.add(self.deck.draw_card())
-        print("The shared cards are: ",self.shared_card_strings())
         #second round of betting
         self.stage = Round_Stage.SECOND_ROUND_BETTING
         self.round_of_bets()
         #the turn
         self.stage = Round_Stage.THE_TURN
         self.shared_cards.add(self.deck.draw_card())
-        print("The shared cards are: ", self.shared_card_strings())
         #third round of betting
         self.stage = Round_Stage.THIRD_ROUND_BETTING
         self.round_of_bets()
         #the river
         self.stage = Round_Stage.THE_RIVER
         self.shared_cards.add(self.deck.draw_card())
-        print("The shared cards are: ", self.shared_card_strings())
         #fourth round of betting
         self.stage = Round_Stage.FOURTH_ROUND_BETTING
         self.round_of_bets()
@@ -344,18 +285,12 @@ class Poker_Round(object):
         return None
 
 def main():
-    deck = Deck()
-    hand = Hand_of_Cards()
-    for i in range(5):
-        hand.add_card(deck.draw_card())
-    print(hash(hand))
-    """
     game = Game()
     for i in range(0,5):
         game.add_player(Player(game,bank=500,name=str(i)))
-    round: Poker_Round= game.get_current_round()
+    round: Poker_Round= game.new_round()
     round.run_round()
-    """
+
 
 
 if __name__ == '__main__':
