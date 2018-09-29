@@ -1,7 +1,7 @@
 # poker_ai
 
 ## poker.py
-The module for controlling the mechanics of the virtual poker game
+The module for controlling the mechanics of the virtual poker game, imports hand.py
 
 ### card
 an object class that contains info like rank and suit
