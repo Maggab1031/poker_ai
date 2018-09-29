@@ -1,10 +1,10 @@
 import random
 from enum import Enum
+from hand import Hand_of_Cards
 
-
-#todo: make it so the round doesn't end until all debts are paid
 #todo: folding/losing conditions
 #todo: make rounds run consecutively
+
 
 
 class Hand_Value(Enum):
@@ -99,168 +99,7 @@ class Deck(object):
     def draw_card(self):
         return self.cards.pop()
 
-class Hand_of_Cards(object):
-    def __init__(self,player=None,cards=None):
-        if cards==None:
-            cards = set()
-            self.cards = cards
-            self.player = player
-        else:
-            self.cards = cards
-            self.player = player
-            self.value = self.highest_value()
 
-    def __str__(self):
-        a = ""
-        for card in self.cards:
-            a += str(card)+", "
-        return a
-
-    def better_hand_than(self,other_hand):
-        if self.highest_value()[0].value > other_hand.highest_value()[0].value:
-            return True
-        elif self.highest_value()[0].value < other_hand.highest_value()[0].value:
-            return False
-        else:
-            print("tie")
-            return True
-
-    def copy(self):
-        return Hand_of_Cards(self.player,self.cards)
-
-    def add_card(self,card):
-        self.cards.add(card)
-
-    def get_cards(self):
-        return self.cards
-
-    def to_list_of_strings(self):
-        strings = []
-        for x in self.cards:
-            strings.append(x.get_string())
-        return strings
-
-    def is_pair(self):
-        rank_dict = {}
-        for card in self.cards:
-            if str(card.get_rank()) not in rank_dict:
-                rank_dict[str(card.get_rank())] = 0
-            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
-            if rank_dict[str(card.get_rank())] > 1:
-                return True
-        return False
-
-    def is_three_of_a_kind(self):
-        rank_dict = {}
-        for card in self.cards:
-            if str(card.get_rank()) not in rank_dict:
-                rank_dict[str(card.get_rank())] = 0
-            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] +1
-            if rank_dict[str(card.get_rank())]>2:
-                return True
-        return False
-
-    def is_four_of_a_kind(self):
-        rank_dict = {}
-        for card in self.cards:
-            if str(card.get_rank()) not in rank_dict:
-                rank_dict[str(card.get_rank())] = 0
-            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
-            if rank_dict[str(card.get_rank())] > 3:
-                return True
-        return False
-
-    def is_two_pair(self):
-        rank_dict = {}
-        for card in self.cards:
-            if str(card.get_rank()) not in rank_dict:
-                rank_dict[str(card.get_rank())] = 0
-                rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
-        total = 0
-        for rank in rank_dict:
-            if rank_dict[rank]>1:
-                total += 1
-        return total>1
-
-    def is_straight(self):
-        cards = self.cards
-        ranks = []
-        for card in cards:
-            ranks.append(card.get_rank().value)
-        ranks.sort(reverse=True)
-        if (len(self.cards)==5):
-            i=len(ranks)-1
-            while i > 1:
-                if ranks[i-1]!=ranks[i]-1:
-                    return False
-                else:
-                    i-=1
-            return True
-
-    def is_flush(self):
-        list= []
-        for x in self.cards:
-            list.append(x.get_suit())
-        if list.count(list[0])==5:
-            return True
-        else:
-            return False
-
-    def is_full_house(self):
-        rank_dict = {}
-        for card in self.cards:
-            if str(card.get_rank()) not in rank_dict.keys():
-                rank_dict[str(card.get_rank())] = 0
-            rank_dict[str(card.get_rank())] = rank_dict[str(card.get_rank())] + 1
-        for rank in rank_dict:
-            if rank_dict[rank]==2:
-                for rank in rank_dict:
-                    if rank_dict[rank]==3:
-                        return True
-            if rank_dict[rank]==3:
-                for rank in rank_dict:
-                    if rank_dict[rank] == 2:
-                        return True
-        return False
-
-    def is_straight_flush(self):
-        return self.is_flush() and self.is_straight()
-
-    def is_royal_flush(self):
-        suits ={}
-        for card in self.cards:
-            if str(card.get_suit()) not in suits.keys():
-                suits[str(card.get_suit())] = 0
-            suits[str(card.get_suit())] = suits[str(card.get_suit())] +1
-            if card.rank not in face_cards:
-                return False
-        if len(suits.keys())==1 and len(self.cards)==5:
-            return True
-
-    def highest_value(self):
-        if self.is_royal_flush():
-            return (Hand_Value.ROYAL_FLUSH,self.cards)
-        elif self.is_straight_flush():
-            return (Hand_Value.STRAIGHT_FLUSH,self.cards)
-        elif self.is_four_of_a_kind():
-            return (Hand_Value.FOUR_OF_A_KIND,self.cards)
-        elif self.is_full_house():
-            return (Hand_Value.FULL_HOUSE,self.cards)
-        elif self.is_flush():
-            return (Hand_Value.FLUSH,self.cards)
-        elif self.is_straight():
-            return (Hand_Value.STRAIGHT,self.cards)
-        elif self.is_three_of_a_kind():
-            return (Hand_Value.THREE_OF_A_KIND,self.cards)
-        elif self.is_two_pair():
-            return (Hand_Value.TWO_PAIR,self.cards)
-        elif self.is_pair():
-            return (Hand_Value.PAIR,self.cards)
-        else:
-            return (Hand_Value.NONE,self.cards)
-
-    def reveal_to_player(self):
-        self.player.see_hand()
 
 class Player(object):
     def __init__(self,game,bank,name):
@@ -278,6 +117,12 @@ class Player(object):
     def add_to_hand(self,card):
         self.hand.add_card(card)
         print(self.name," Added",str(card))
+
+    def get_info(self):
+        print("Your hand is ",str(self.hand))
+        print("Your bank is ",str(self.bank))
+
+
 
     def propose_bet(self,amount:int,round):
         decision = ""
@@ -400,21 +245,15 @@ class Poker_Round(object):
             paid = dicts[1]
         if players == None:
             # make a list starting with the starting index
-            new_players = []
-            for i in range(index, len(self.players)):
-                new_players.append(self.players[i])
-            for i in range(0, index):
-                new_players.append(self.players[i])
-        else:
-            new_players = self.players
+            players=self.players
+        new_players = []
+        for i in range(index, len(players)):
+            new_players.append(players[i])
+        for i in range(0, index):
+            new_players.append(players[i])
         #loop through the list
         for player in new_players:
-            #if a player has gone all in, they cannot bet any more
-            if self.limit:
-                amount = 0
-            else:
-                # otherwise the player must play the debt that they owe
-                amount = debts[player.name]
+            amount = debts[player.name]
             # query the debt
             response = player.propose_bet(amount, self)
             # if the player did not fold
@@ -433,6 +272,8 @@ class Poker_Round(object):
                     debts[player_str] += to_pay
                 # the player has finished their debts
                 debts[str(player.name)] = 0
+                print(debts)
+                print(paid)
             else:
                 #if the player folds, remove them from all dicts and the player list
                 del debts[str(player.name)]
@@ -446,7 +287,11 @@ class Poker_Round(object):
         for i in debts.keys():
             loop = debts[i]==0 and loop
         if not loop:
-            self.round_of_bets(dicts=(debts,paid))
+            if index == len(new_players)-1:
+                index = 0
+            else:
+                index +=1
+            self.round_of_bets(index=index,dicts=(debts,paid),players=new_players)
 
     def shared_card_strings(self):
         shared = []
@@ -499,11 +344,19 @@ class Poker_Round(object):
         return None
 
 def main():
+    deck = Deck()
+    hand = Hand_of_Cards()
+    for i in range(5):
+        hand.add_card(deck.draw_card())
+    print(hash(hand))
+    """
     game = Game()
     for i in range(0,5):
         game.add_player(Player(game,bank=500,name=str(i)))
     round: Poker_Round= game.get_current_round()
     round.run_round()
+    """
+
 
 if __name__ == '__main__':
     main()
