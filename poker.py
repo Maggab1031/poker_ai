@@ -357,7 +357,7 @@ class Poker_Round(object):
         self.pot = 0
         self.limit = False
         self.stage = Round_Stage.SMALL_BLIND
-        self.shared_cards = []
+        self.shared_cards = set()
 
     def remove_player(self,player):
         if player in self.players: self.players.remove(player)
@@ -379,7 +379,7 @@ class Poker_Round(object):
         for player in self.players:
             player.bank += int(self.pot/num_pl)
 
-    def round_of_bets(self,amount=0,index=None):
+    def round_of_bets(self,amount=0,index=None,dicts=None,players=None):
         #set the starting index to the player next in rotation after the given index
         if index==None:
             index = self.dealer_index
@@ -388,19 +388,25 @@ class Poker_Round(object):
         else:
             index = 0
         #initialize the dicts for tracking debts and paid
-        debts = {}
-        paid = {}
-        debt = amount
-        for player in self.players:
-            debts[str(player.name)] = debt
-            paid[str(player.name)] = 0
-        #make a list starting with the starting index
-        new_players = []
-        for i in range(index,len(self.players)):
-            new_players.append(self.players[i])
-        for i in range(0, index):
-            new_players.append(self.players[i])
-
+        if dicts==None:
+            debts = {}
+            paid = {}
+            debt = amount
+            for player in self.players:
+                debts[str(player.name)] = debt
+                paid[str(player.name)] = 0
+        else:
+            debts = dicts[0]
+            paid = dicts[1]
+        if players == None:
+            # make a list starting with the starting index
+            new_players = []
+            for i in range(index, len(self.players)):
+                new_players.append(self.players[i])
+            for i in range(0, index):
+                new_players.append(self.players[i])
+        else:
+            new_players = self.players
         #loop through the list
         for player in new_players:
             #if a player has gone all in, they cannot bet any more
@@ -420,22 +426,36 @@ class Poker_Round(object):
                 # if the player went all in, set boolean up
                 if response[2]:
                     self.limit = True
+                # the amount each other player must pay is the amount this player raised
                 to_pay = (response[1] - debts[str(player.name)])
+                # add the raise to each debt
                 for player_str in debts.keys():
                     debts[player_str] += to_pay
+                # the player has finished their debts
                 debts[str(player.name)] = 0
-                print(debts)
-                print(paid)
             else:
                 #if the player folds, remove them from all dicts and the player list
                 del debts[str(player.name)]
                 del paid[str(player.name)]
                 self.players.remove(player)
+                # if one player remains, the round is over
                 if len(self.players)==1:
                     self.end_round()
                     break
+        loop = True
+        for i in debts.keys():
+            loop = debts[i]==0 and loop
+        if not loop:
+            self.round_of_bets(dicts=(debts,paid))
 
+    def shared_card_strings(self):
+        shared = []
+        for card in self.shared_cards:
+            shared.append(str(card))
+        return shared
 
+    def shared_card_objects(self):
+        return self.shared_cards
 
     def run_round(self):
         self.stage = Round_Stage.SMALL_BLIND
@@ -450,24 +470,24 @@ class Poker_Round(object):
         self.round_of_bets(amount=self.small_blind*2,index=self.bbi)
         #THE FLOP
         self.stage = Round_Stage.THE_FLOP
-        self.shared_cards.append(self.deck.draw_card())
-        self.shared_cards.append(self.deck.draw_card())
-        self.shared_cards.append(self.deck.draw_card())
-        print("The shared cards are: ",self.shared_cards[0],self.shared_cards[1],self.shared_cards[2])
+        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.add(self.deck.draw_card())
+        self.shared_cards.add(self.deck.draw_card())
+        print("The shared cards are: ",self.shared_card_strings())
         #second round of betting
         self.stage = Round_Stage.SECOND_ROUND_BETTING
         self.round_of_bets()
         #the turn
         self.stage = Round_Stage.THE_TURN
-        self.shared_cards.append(self.deck.draw_card())
-        print("The shared cards are: ", self.shared_cards[0], self.shared_cards[1], self.shared_cards[2], self.shared_cards[3])
+        self.shared_cards.add(self.deck.draw_card())
+        print("The shared cards are: ", self.shared_card_strings())
         #third round of betting
         self.stage = Round_Stage.THIRD_ROUND_BETTING
         self.round_of_bets()
         #the river
         self.stage = Round_Stage.THE_RIVER
-        self.shared_cards.append(self.deck.draw_card())
-        print("The shared cards are: ", self.shared_cards[0], self.shared_cards[1], self.shared_cards[2], self.shared_cards[3], self.shared_cards[4])
+        self.shared_cards.add(self.deck.draw_card())
+        print("The shared cards are: ", self.shared_card_strings())
         #fourth round of betting
         self.stage = Round_Stage.FOURTH_ROUND_BETTING
         self.round_of_bets()
