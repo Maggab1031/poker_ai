@@ -37,6 +37,27 @@ class Suit(Enum):
     HEARTS = 3
     SPADES = 4
 
+class Card(object):
+
+    def __init__(self, suit:Suit, rank:Rank):
+        self.suit = suit
+        self.rank = rank
+
+    def get_rank(self):
+        return self.rank
+
+    def get_suit(self):
+        return self.suit
+
+    def same_suit(self,card):
+        return card.get_suit()==self.suit
+
+    def same_rank(self,card):
+        return card.get_rank()==self.rank
+
+    def __str__(self):
+        return self.rank.name + " of " + self.suit.name
+
 class Hand_of_Cards(object):
     def __init__(self,player=None,cards=None):
         if cards==None:
